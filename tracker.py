@@ -79,7 +79,8 @@ def extract_data_from_notion_response(response_data):
         extracted_data.append({
             "name": properties["Project Name"]["title"][0]["plain_text"],
             "label": properties["Label"]["status"]["name"],
-            "link": properties["Link"]["rich_text"][0]["plain_text"]
+            "link": properties["Link"]["rich_text"][0]["plain_text"],
+            "notion_page_id": get_pageid_from_notion_url(result["url"]),
         })
 
     return extracted_data
@@ -110,6 +111,7 @@ def get_deployment_status(deployment_db):
                 "Status": check_project_deployment_status(entry["link"], max_retries=3)
             }
             deployment_status_data_list.append(deployment_status)
+
         except Exception as e:
             logging.error(e)
             pass
@@ -132,9 +134,79 @@ def set_logging_config():
                         format='%(asctime)s:%(levelname)s:%(message)s')
 
 
+def get_old_new_status(deployments_db_data, deployment_statuses_data):
+    for status in deployment_statuses_data:
+        if status["Status"]:
+            status["Status"] = "Healthy"
+        else:
+            status["Status"] = "Down"
+
+    status_dict = {status["Project Name"]: status for status in deployment_statuses_data}
+
+    changes = []
+
+    for db_data in deployments_db_data:
+        corresponding_status = status_dict.get(db_data["name"])
+
+        if corresponding_status:
+            changes.append({
+                "name": db_data["name"],
+                "old_status": db_data["label"],
+                "new_status": corresponding_status["Status"],
+                "notion_page_id": db_data["notion_page_id"],
+            })
+
+    return changes
+
+
+def update_notion_deployments_database(deployments_data, deployments_data_new):
+    final_statuses_data = get_old_new_status(deployments_data, deployments_data_new)
+
+    for entry in final_statuses_data:
+        if entry["old_status"] != entry["new_status"]:
+            update_status_in_project_page(entry["notion_page_id"], entry["new_status"])
+            logging.info(f"Updated {entry['name']} from {entry['old_status']} to {entry['new_status']}")
+        else:
+            logging.info(f"No Change in {entry['name']}")
+
+
+def update_status_in_project_page(page_id, new_status):
+    try:
+        headers = {
+            "Authorization": "Bearer " + NOTION_API_TOKEN,
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-02-22"
+        }
+
+        update_data_payload = {
+            "properties": {
+                "Label": {
+                    "status": {
+                        "name": new_status
+                    }
+                }
+            }
+        }
+
+        api_url = f"https://api.notion.com/v1/pages/{page_id}"
+
+        response = requests.request("PATCH", api_url, headers=headers, data=json.dumps(update_data_payload))
+
+        return response.status_code
+
+    except Exception as e:
+        logging.error(e)
+        return None
+
+
+def get_pageid_from_notion_url(notion_url):
+    return notion_url.split("-")[-1]
+
+
 if __name__ == "__main__":
     try:
         set_logging_config()
+
         # Getting Deployment DB Data
         deployment_db_raw_data = read_notion_deployments_database(DEPLOYMENT_DB_ID)
         deployment_db_data = extract_data_from_notion_response(deployment_db_raw_data)
@@ -148,6 +220,9 @@ if __name__ == "__main__":
         message_payload = get_discord_message_payload(deployment_statuses)
         send_message_to_discord("Deployments Tracker", message_payload)
         logging.info(f"Message Payload: {message_payload}")
+
+        # Update Notion Database
+        update_notion_deployments_database(deployment_db_data, deployment_statuses)
 
     except Exception as e:
         logging.error(e)
