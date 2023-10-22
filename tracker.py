@@ -86,10 +86,10 @@ def extract_data_from_notion_response(response_data):
     return extracted_data
 
 
-def check_project_deployment_status(project_link, max_retries=3):
+def check_project_deployment_status(project_link, max_retries=3, timeout=5):
     try:
         for i in range(max_retries):
-            response = requests.get(project_link, allow_redirects=True)
+            response = requests.get(project_link, allow_redirects=True, timeout=timeout)
             if response.status_code == 200:
                 return True
             else:
@@ -121,7 +121,7 @@ def get_deployment_status(deployment_db):
 
 def get_discord_message_payload(deployment_status_data):
     payload = ""
-    payload += f"Checked at: {get_current_datetime()}\n"
+    payload += f"Checked at: {get_current_datetime()}\n\n"
 
     for entry in deployment_status_data:
         payload += f"{entry['Project Name']}: {'✅' if entry['Status'] else '❌'}\n"
