@@ -2,6 +2,8 @@ name: Deploy Tracker
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: do-something
   schedule:
     - cron: '*/30 * * * *'
 
