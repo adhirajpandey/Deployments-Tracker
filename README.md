@@ -4,7 +4,7 @@ This applicaation helps in tracking uptime of your project deployments and regul
 Uses Notion API to fetch deployment details and Discord API to send status notification to discord channel.
 
 ## Usage
-0. Create a custom notion integration, [referece](https://developers.notion.com/docs/create-a-notion-integration)
+0. Create a custom notion integration, [reference](https://developers.notion.com/docs/create-a-notion-integration)
 1. Make a page in Notion which containes deployment details like : Project Name, URL to check, Current Status. Check attached Screenshot for reference.
 2. Share this created page with your custom integration.
 3. Clone the project to your local system using: `git clone https://github.com/adhirajpandey/Deployments-Tracker`
