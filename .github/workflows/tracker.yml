@@ -5,7 +5,7 @@ on:
   repository_dispatch:
     types: do-something
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 * * * *'
 
 jobs:
   deploy:
